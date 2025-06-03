@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -31,6 +32,7 @@ class WebSocketPage extends StatefulWidget {
 class _WebSocketPageState extends State<WebSocketPage> {
   late WebSocketChannel channel;
   bool isConnected = false;
+  String? currentStatus;
 
   @override
   void initState() {
@@ -41,25 +43,41 @@ class _WebSocketPageState extends State<WebSocketPage> {
   void _connectWebSocket() {
     try {
       channel = WebSocketChannel.connect(Uri.parse('ws://192.168.137.1:5000/'));
+
+      // Send identification message
+      channel.sink.add('flutter');
       isConnected = true;
 
-      // Listen for messages from the server
       channel.stream.listen(
         (message) {
-          if (message == "Done") {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Gửi thành công!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          } else if (message == "Error") {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Gửi thất bại!'),
-                backgroundColor: Colors.red,
-              ),
-            );
+          try {
+            final Map<String, dynamic> jsonResponse = json.decode(message);
+
+            // Handle success response
+            if (jsonResponse.containsKey('status') &&
+                jsonResponse['status'] == 'success') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Gửi thành công: ${jsonResponse['keyword']}'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+
+            // Handle car status response
+            if (jsonResponse.containsKey('car_status')) {
+              setState(() {
+                currentStatus = jsonResponse['car_status'];
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Trạng thái xe: ${jsonResponse['car_status']}'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            }
+          } catch (e) {
+            print('Error parsing JSON: $e');
           }
         },
         onError: (error) {
@@ -118,29 +136,58 @@ class _WebSocketPageState extends State<WebSocketPage> {
         title: const Text('WebSocket Demo'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildButton('A1'),
-                const SizedBox(width: 20),
-                _buildButton('A2'),
-              ],
+      body: Column(
+        children: [
+          if (currentStatus != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.directions_car, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Trạng thái xe: $currentStatus',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildButton('B1'),
-                const SizedBox(width: 20),
-                _buildButton('B2'),
-              ],
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildButton('A1'),
+                      const SizedBox(width: 20),
+                      _buildButton('A2'),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildButton('B1'),
+                      const SizedBox(width: 20),
+                      _buildButton('B2'),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
