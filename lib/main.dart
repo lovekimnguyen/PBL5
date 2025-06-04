@@ -42,7 +42,7 @@ class _WebSocketPageState extends State<WebSocketPage> {
 
   void _connectWebSocket() {
     try {
-      channel = WebSocketChannel.connect(Uri.parse('ws://192.168.137.1:5000/'));
+      channel = WebSocketChannel.connect(Uri.parse('ws://192.168.1.21:5000/'));
 
       // Send identification message
       channel.sink.add('flutter');
